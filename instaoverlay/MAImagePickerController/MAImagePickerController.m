@@ -7,7 +7,7 @@
 //
 
 #import "MAImagePickerController.h"
-#import "MAImagePickerControllerAdjustViewController.h"
+#import "MAImagePickerFinalViewController.h"
 
 #import "UIImage+fixOrientation.h"
 
@@ -219,7 +219,7 @@
 {
     [[_captureManager captureSession] stopRunning];
     
-    MAImagePickerControllerAdjustViewController *adjustViewController = [[MAImagePickerControllerAdjustViewController alloc] init];
+    MAImagePickerFinalViewController *adjustViewController = [[MAImagePickerFinalViewController alloc] init];
     adjustViewController.sourceImage = [[self captureManager] stillImage];
     
     [UIView animateWithDuration:0.05 delay:0.0 options:UIViewAnimationOptionCurveEaseInOut animations:^
@@ -255,7 +255,7 @@
     imagePickerDismissed = YES;
     [self.navigationController popViewControllerAnimated:NO];
     
-    MAImagePickerControllerAdjustViewController *adjustViewController = [[MAImagePickerControllerAdjustViewController alloc] init];
+    MAImagePickerFinalViewController *adjustViewController = [[MAImagePickerFinalViewController alloc] init];
     adjustViewController.sourceImage = [[info objectForKey:UIImagePickerControllerOriginalImage] fixOrientation];
     
     CATransition* transition = [CATransition animation];

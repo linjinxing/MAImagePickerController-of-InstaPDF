@@ -19,4 +19,11 @@
     return src;
 }
 
+//- (CGFloat) contentScale
+//{
+//    CGSize imageSize = self.image.size;
+//    CGFloat imageScale = fminf(CGRectGetWidth(self.bounds)/imageSize.width, CGRectGetHeight(self.bounds)/imageSize.height);
+//    return imageScale;
+//}
+
 @end

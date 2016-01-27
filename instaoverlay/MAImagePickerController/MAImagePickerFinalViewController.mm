@@ -11,9 +11,24 @@
 #import <CoreImage/CoreImage.h>
 #import <QuartzCore/QuartzCore.h>
 #import "MAOpenCV.h"
+#import "MADrawRect.h"
+#import "UIImageView+ContentFrame.h"
 
 @interface MAImagePickerFinalViewController ()
+@property(nonatomic, strong) MADrawRect* viewCrop;
+@property (strong, nonatomic) UIImage *adjustedImage;
 
+@property (strong, nonatomic) UIButton *firstSettingIcon;
+@property (strong, nonatomic) UIButton *secondSettingIcon;
+@property (strong, nonatomic) UIButton *thirdSettingIcon;
+@property (strong, nonatomic) UIButton *fourthSettingIcon;
+
+@property (strong, nonatomic) UIBarButtonItem *rotateButton;
+
+@property (strong, nonatomic) UIImageView *activityIndicator;
+@property (strong, nonatomic) UIActivityIndicatorView *progressIndicator;
+
+@property (strong, nonatomic) UIImageView *finalImageView;
 @end
 
 @implementation MAImagePickerFinalViewController
@@ -51,10 +66,14 @@
     _adjustedImage = _sourceImage;
     
     _finalImageView = [[UIImageView alloc] init];
+    _finalImageView.userInteractionEnabled = YES;
     [_finalImageView setFrame:CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height - (kCameraToolBarHeight + 70))];
     [_finalImageView setContentMode:UIViewContentModeScaleAspectFit];
     [_finalImageView setUserInteractionEnabled:YES];
     [_finalImageView setImage:_sourceImage];
+    
+    self.viewCrop = [[MADrawRect alloc] initWithFrame:_finalImageView.bounds];
+    [_finalImageView addSubview:self.viewCrop];
     
     UIScrollView * imgScrollView = [[UIScrollView alloc] initWithFrame:_finalImageView.frame];
     [imgScrollView setScrollEnabled:YES];
@@ -427,14 +446,72 @@
     
 }
 
-- (void)viewWillDisappear:(BOOL)animated
+- (void)confirmedImage
 {
-}
-
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+    BOOL edited;
+    if ([self.viewCrop frameEdited])
+    {
+        //cv::GaussianBlur(original, original, cvSize(11,11), 0);
+        //cv::adaptiveThreshold(original, original, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5, 2);
+        
+        CGFloat scaleFactor =  [self.finalImageView contentScale];
+        CGPoint ptBottomLeft = [self.viewCrop coordinatesForPoint:1 withScaleFactor:scaleFactor];
+        CGPoint ptBottomRight = [self.viewCrop coordinatesForPoint:2 withScaleFactor:scaleFactor];
+        CGPoint ptTopRight = [self.viewCrop coordinatesForPoint:3 withScaleFactor:scaleFactor];
+        CGPoint ptTopLeft = [self.viewCrop coordinatesForPoint:4 withScaleFactor:scaleFactor];
+        
+        CGFloat w1 = sqrt( pow(ptBottomRight.x - ptBottomLeft.x , 2) + pow(ptBottomRight.x - ptBottomLeft.x, 2));
+        CGFloat w2 = sqrt( pow(ptTopRight.x - ptTopLeft.x , 2) + pow(ptTopRight.x - ptTopLeft.x, 2));
+        
+        CGFloat h1 = sqrt( pow(ptTopRight.y - ptBottomRight.y , 2) + pow(ptTopRight.y - ptBottomRight.y, 2));
+        CGFloat h2 = sqrt( pow(ptTopLeft.y - ptBottomLeft.y , 2) + pow(ptTopLeft.y - ptBottomLeft.y, 2));
+        
+        CGFloat maxWidth = (w1 < w2) ? w1 : w2;
+        CGFloat maxHeight = (h1 < h2) ? h1 : h2;
+        
+        cv::Point2f src[4], dst[4];
+        src[0].x = ptTopLeft.x;
+        src[0].y = ptTopLeft.y;
+        src[1].x = ptTopRight.x;
+        src[1].y = ptTopRight.y;
+        src[2].x = ptBottomRight.x;
+        src[2].y = ptBottomRight.y;
+        src[3].x = ptBottomLeft.x;
+        src[3].y = ptBottomLeft.y;
+        
+        dst[0].x = 0;
+        dst[0].y = 0;
+        dst[1].x = maxWidth - 1;
+        dst[1].y = 0;
+        dst[2].x = maxWidth - 1;
+        dst[2].y = maxHeight - 1;
+        dst[3].x = 0;
+        dst[3].y = maxHeight - 1;
+        
+        cv::Mat undistorted = cv::Mat( cvSize(maxWidth,maxHeight), CV_8UC1);
+        cv::Mat original = [MAOpenCV cvMatFromUIImage:_adjustedImage];
+        cv::warpPerspective(original, undistorted, cv::getPerspectiveTransform(src, dst), cvSize(maxWidth, maxHeight));
+        original.release();
+        
+        _adjustedImage = [MAOpenCV UIImageFromCVMat:undistorted];
+        undistorted.release();
+        edited = YES;
+    }
+    else
+    {
+        edited = NO;
+    }
+    
+    MAImagePickerFinalViewController *finalView = [[MAImagePickerFinalViewController alloc] init];
+    finalView.sourceImage = _adjustedImage;
+    finalView.imageFrameEdited = edited;
+    
+    CATransition* transition = [CATransition animation];
+    transition.duration = 0.4;
+    transition.type = kCATransitionFade;
+    transition.subtype = kCATransitionFromBottom;
+    [self.navigationController.view.layer addAnimation:transition forKey:kCATransition];
+    [self.navigationController pushViewController:finalView animated:NO];
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
